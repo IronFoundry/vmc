@@ -4,11 +4,11 @@ $:.unshift File.expand_path("../lib", __FILE__)
 require 'cli/version'
 
 spec = Gem::Specification.new do |s|
-  s.name = "vmc"
+  s.name = "vmc-IronFoundry"
   s.version = VMC::Cli::VERSION
-  s.author = "VMware"
-  s.email = "support@vmware.com"
-  s.homepage = "http://vmware.com"
+  s.author = "VMware / Iron Foundry"
+  s.email = "help@ironfoundry.org"
+  s.homepage = "http://www.ironfoundry.org"
   s.description = s.summary = "Client library and CLI that provides access to the VMware Cloud Application Platform."
   s.executables = %w(vmc)
 
