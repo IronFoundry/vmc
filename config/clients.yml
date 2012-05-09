@@ -15,3 +15,6 @@ postgresql:
     command: -h ${host} -p ${port} -d ${name} -U ${user} -w
     environment:
       - PGPASSWORD='${password}'
+
+mssql:
+  sqlcmd: -S ${host},${port} -U ${user} -P ${password} -d ${name}
