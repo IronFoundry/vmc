@@ -20,7 +20,8 @@ module VMC::Cli
       'Django'   => ['django',  { :mem => '128M', :description => 'Python Django Application'}],
       'ASP.NET 4.0'  => ['aspdotnet', { :mem => '64M', :description => 'ASP.NET 4.0 Application'}],
       'dotNet'   => ['dotNet',  { :mem => '128M', :description => '.Net Web Application'}],
-      'Rack'     => ['rack', { :mem => '128M', :description => 'Rack Application'}]
+      'Rack'     => ['rack', { :mem => '128M', :description => 'Rack Application'}],
+      'Play'     => ['play',  { :mem => '256M', :description => 'Play Framework Application'}]
     }
 
     class << self
@@ -55,6 +56,8 @@ module VMC::Cli
         if !File.directory? path
           if path.end_with?('.war')
             return detect_framework_from_war path
+          elsif path.end_with?('.zip')
+            return detect_framework_from_zip path, available_frameworks
           elsif available_frameworks.include?(["standalone"])
             return Framework.lookup('Standalone')
           else
@@ -126,6 +129,11 @@ module VMC::Cli
             if File.exist?('server.js') || File.exist?('app.js') || File.exist?('index.js') || File.exist?('main.js')
               return Framework.lookup('Node')
             end
+
+          # Play or Standalone Apps
+          elsif Dir.glob('*.zip').first
+            zip_file = Dir.glob('*.zip').first
+            return detect_framework_from_zip zip_file, available_frameworks
           end
 
           # Default to Standalone if no other match was made
@@ -133,7 +141,6 @@ module VMC::Cli
         end
       end
 
-      private
       def detect_framework_from_war(war_file=nil)
         if war_file
           contents = ZipUtil.entry_lines(war_file)
@@ -155,6 +162,19 @@ module VMC::Cli
           return Framework.lookup('Spring')
         else
           return Framework.lookup('JavaWeb')
+        end
+      end
+
+      def detect_framework_from_zip(zip_file, available_frameworks)
+        contents = ZipUtil.entry_lines(zip_file)
+        detect_framework_from_zip_contents(contents, available_frameworks)
+      end
+
+      def detect_framework_from_zip_contents(contents, available_frameworks)
+        if available_frameworks.include?(["play"]) && contents =~ /lib\/play\..*\.jar/
+          return Framework.lookup('Play')
+        elsif available_frameworks.include?(["standalone"])
+          return Framework.lookup('Standalone')
         end
       end
     end
@@ -236,7 +256,7 @@ module VMC::Cli
     def memory(runtime=nil)
       default_mem = @memory
       default_mem = '128M' if runtime =~ /\Aruby/ || runtime == "php"
-      default_mem = '512M' if runtime == "java"
+      default_mem = '512M' if runtime == "java" || runtime == "java7"
       default_mem
     end
 
