@@ -28,7 +28,7 @@ spec = Gem::Specification.new do |s|
   s.add_dependency 'addressable', '~> 2.2.6'
   s.add_dependency 'uuidtools', '~> 2.1.0'
   s.add_dependency 'rb-readline', '~> 0.4.2'
-  s.add_dependency 'cfoundry-IronFoundry', '~> 0.3.39'
+  s.add_dependency 'cfoundry-IronFoundry', '~> 0.3.40'
 
   s.add_development_dependency 'rake'
   s.add_development_dependency 'rspec',   '~> 1.3.0'
