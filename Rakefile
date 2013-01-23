@@ -1,101 +1,60 @@
-require 'rake'
-require 'spec/rake/spectask'
+require "rake"
+require "auto_tagger"
+require "rspec/core/rake_task"
 
-desc "Run specs"
-task :spec => :build do
-  Spec::Rake::SpecTask.new('spec') do |t|
-    t.spec_opts = %w(-fs -c)
-    t.spec_files = FileList['spec/**/*_spec.rb']
-  end
-end
+$LOAD_PATH.unshift File.expand_path("../lib", __FILE__)
+require "vmc/version"
 
-desc "Synonym for spec"
-task :test => :spec
-desc "Synonym for spec"
-task :tests => :spec
+RSpec::Core::RakeTask.new(:spec)
 task :default => :spec
 
-def tests_path
-  if @tests_path == nil
-    @tests_path = File.join(Dir.pwd, "spec/assets/tests")
+namespace :deploy do
+  def auto_tag
+    @auto_tag ||= AutoTagger::Base.new(
+      :stage => "staging",
+      :stages => %w[staging],
+      :verbose => true,
+      :push_refs => false,
+      :refs_to_keep => 100
+    )
   end
-  @tests_path
-end
-TESTS_PATH = tests_path
 
-BUILD_ARTIFACT = File.join(Dir.pwd, "spec/assets/.build")
-
-TESTS_TO_BUILD = ["#{TESTS_PATH}/java_web/java_tiny_app",
-#             "#{TESTS_PATH}/grails/guestbook",
-             "#{TESTS_PATH}/lift/hello_lift",
-             "#{TESTS_PATH}/spring/roo-guestbook",
-             "#{TESTS_PATH}/spring/spring-osgi-hello",
-             "#{TESTS_PATH}/standalone/java_app",
-             "#{TESTS_PATH}/standalone/python_app"
-            ]
-
-desc "Build the tests. If the git hash associated with the test assets has not changed, nothing is built. To force a build, invoke 'rake build[--force]'"
-task :build, [:force] do |t, args|
-  sh('bundle install')
-  sh('git submodule update --init')
-  puts "\nBuilding tests"
-  if build_required? args.force
-    ENV['MAVEN_OPTS']="-XX:MaxPermSize=256M"
-    TESTS_TO_BUILD.each do |test|
-      puts "\tBuilding '#{test}'"
-      Dir.chdir test do
-        sh('mvn package -DskipTests') do |success, exit_code|
-          unless success
-            clear_build_artifact
-            do_mvn_clean('-q')
-            fail "\tFailed to build #{test} - aborting build"
-          end
-        end
-      end
-      puts "\tCompleted building '#{test}'"
-    end
-    save_git_hash
-  else
-    puts "Built artifacts in sync with test assets - no build required"
+  def last_staging_ref
+    auto_tag.refs_for_stage("staging").last
   end
-end
 
-desc "Clean the build artifacts"
-task :clean do
-  puts "\nCleaning tests"
-  clear_build_artifact
-  TESTS_TO_BUILD.each do |test|
-    puts "\tCleaning '#{test}'"
-    Dir.chdir test do
-      do_mvn_clean
-    end
-    puts "\tCompleted cleaning '#{test}'"
+  def last_release_sha
+    `git rev-parse latest-release`.strip
   end
-end
 
-def build_required? (force_build=nil)
-  if File.exists?(BUILD_ARTIFACT) == false or (force_build and force_build == "--force")
-    return true
+  def checkout_last_staging_ref
+    sh "git fetch"
+    sh "git checkout #{last_staging_ref.name}"
   end
-  Dir.chdir(tests_path) do
-    saved_git_hash = IO.readlines(BUILD_ARTIFACT)[0].split[0]
-    git_hash = `git rev-parse --short=8 --verify HEAD`
-    saved_git_hash.to_s.strip != git_hash.to_s.strip
+
+  def last_staging_ref_was_released?
+    last_staging_ref.sha == last_release_sha
   end
-end
 
-def save_git_hash
-  Dir.chdir(tests_path) do
-    git_hash = `git rev-parse --short=8 --verify HEAD`
-    File.open(BUILD_ARTIFACT, 'w') {|f| f.puts("#{git_hash}")}
+  task :staging, :version do |_, args|
+    sh "gem bump --push #{"--version #{args.version}" if args.version}" if last_staging_ref_was_released?
+    sh "git push origin #{auto_tag.create_ref.name}"
+    auto_tag.delete_locally
+    auto_tag.delete_on_remote
   end
-end
 
-def clear_build_artifact
-  puts "\tClearing build artifact #{BUILD_ARTIFACT}"
-  File.unlink BUILD_ARTIFACT if File.exists? BUILD_ARTIFACT
-end
+  task :test do
+    checkout_last_staging_ref
+    sh "rm -f vmc-*.gem"
+    sh "gem build vmc.gemspec"
+    sh "gem uninstall vmc --all --ignore-dependencies --executables"
+    sh "gem install vmc-*.gem"
+  end
 
-def do_mvn_clean options=nil
-  sh("mvn clean #{options}")
+  task :gem do
+    checkout_last_staging_ref
+    sh "gem release --tag"
+    sh "git tag -f latest-release"
+    sh "git push origin latest-release"
+  end
 end
