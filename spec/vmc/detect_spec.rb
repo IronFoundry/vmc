@@ -9,6 +9,7 @@ describe VMC::Detector do
 
     { Clouseau::Django => "django",
       Clouseau::DotNet => "dotNet",
+      Clouseau::AspDotNet => "aspdotnet",
       Clouseau::Grails => "grails",
       Clouseau::Java => "java_web",
       Clouseau::Lift => "lift",

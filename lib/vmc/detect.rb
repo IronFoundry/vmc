@@ -12,6 +12,7 @@ module VMC
       :php => "php",
       :erlang => "otp_rebar",
       :dotnet => "dotNet"
+      :aspdotnet => "aspdotnet"
     }
 
     # Mismatched framework names
@@ -26,6 +27,7 @@ module VMC
       :node => /^node.*/,
       :erlang => /^erlang.*/,
       :dotnet => /^dotNet.*/,
+      :aspdotnet => /^aspdotnet.*/,
       :python => /^python.*/,
       :php => /^php.*/
     }
